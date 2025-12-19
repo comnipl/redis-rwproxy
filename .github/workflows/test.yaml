@@ -1,0 +1,29 @@
+name: Test
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  crate-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          determinate: false
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0
+        with:
+          endpoint: https://attic.comni.pl
+          cache: redis-rwproxy
+          token: ${{ secrets.ATTIC_JWT }}
+
+      - run: nix build -L .#checks.x86_64-linux.crate-test --accept-flake-config
