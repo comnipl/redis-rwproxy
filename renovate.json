@@ -1,0 +1,34 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "Asia/Tokyo",
+  "dependencyDashboard": true,
+  "automerge": false,
+  "configMigration": true,
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "pinDigests": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["pinDigest", "digest"],
+      "minimumReleaseAge": null
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major", "minor", "patch", "pin"],
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "minimumReleaseAge": "7 days"
+    }
+  ]
+}
