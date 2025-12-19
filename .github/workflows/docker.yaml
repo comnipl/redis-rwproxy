@@ -1,0 +1,123 @@
+name: Docker (multi-arch)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: comnipl/redis-rwproxy
+  LOCAL_IMAGE: redis-rwproxy:latest
+
+jobs:
+  build-amd64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          determinate: false
+
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0
+        with:
+          endpoint: https://attic.comni.pl
+          cache: redis-rwproxy
+          token: ${{ secrets.ATTIC_JWT }}
+
+      - name: Build docker image (x86_64-linux)
+        run: nix build -L .#packages.x86_64-linux.dockerImage --accept-flake-config
+
+      - name: Load into Docker
+        run: |
+          docker load < ./result
+          docker image ls | head -n 50
+
+      - name: Login to GHCR
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${{ env.REGISTRY }}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Tag & push (amd64)
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker tag "${LOCAL_IMAGE}" "${REGISTRY}/${IMAGE_NAME}:${TAG}-amd64"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${TAG}-amd64"
+
+  build-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+        with:
+          determinate: false
+
+      - name: Setup Attic cache
+        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0
+        with:
+          endpoint: https://attic.comni.pl
+          cache: redis-rwproxy
+          token: ${{ secrets.ATTIC_JWT }}
+
+      - name: Build docker image (aarch64-linux)
+        run: nix build -L .#packages.aarch64-linux.dockerImage --accept-flake-config
+
+      - name: Load into Docker
+        run: |
+          docker load < ./result
+          docker image ls | head -n 50
+
+      - name: Login to GHCR
+        if: ${{ github.event_name != 'pull_request' }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${{ env.REGISTRY }}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Tag & push (arm64)
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          TAG: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          docker tag "${LOCAL_IMAGE}" "${REGISTRY}/${IMAGE_NAME}:${TAG}-arm64"
+          docker push "${REGISTRY}/${IMAGE_NAME}:${TAG}-arm64"
+
+  manifest:
+    runs-on: ubuntu-24.04
+    needs:
+      - build-amd64
+      - build-arm64
+    if: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login "${{ env.REGISTRY }}" -u "${{ github.actor }}" --password-stdin
+
+      - name: Create & push manifest (commit SHA)
+        env:
+          TAG: ${{ github.sha }}
+          DOCKER_CLI_EXPERIMENTAL: enabled
+        run: |
+          set -euo pipefail
+
+          IMAGE="${REGISTRY}/${IMAGE_NAME}"
+
+          docker manifest rm "${IMAGE}:${TAG}" >/dev/null 2>&1 || true
+
+          docker manifest create "${IMAGE}:${TAG}" \
+            "${IMAGE}:${TAG}-amd64" \
+            "${IMAGE}:${TAG}-arm64"
+
+          docker manifest annotate "${IMAGE}:${TAG}" "${IMAGE}:${TAG}-amd64" --arch amd64
+          docker manifest annotate "${IMAGE}:${TAG}" "${IMAGE}:${TAG}-arm64" --arch arm64
+
+          docker manifest push "${IMAGE}:${TAG}"
