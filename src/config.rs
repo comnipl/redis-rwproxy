@@ -10,6 +10,8 @@ pub struct Config {
     pub proxy_auth: ProxyAuth,
     pub connect_timeout: Duration,
     pub replica_timeout: Duration,
+    pub force_eval_readonly: bool,
+    pub force_evalsha_readonly: bool,
 }
 
 #[derive(Clone, Debug)]

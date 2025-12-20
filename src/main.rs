@@ -45,6 +45,16 @@ struct Args {
     /// On timeout, replica is disabled for that client and reads fall back to master.
     #[arg(long, default_value_t = 5000)]
     replica_timeout_ms: u64,
+
+    /// Converts `EVAL` to `EVAL_RO` and routes them to replicas,
+    /// assuming that all scripts executed via `EVAL` are read-only.
+    #[arg(long)]
+    force_eval_readonly: bool,
+
+    /// Converts `EVALSHA` to `EVALSHA_RO` and routes them to replicas,
+    /// assuming that all scripts executed via `EVALSHA` are read-only.
+    #[arg(long)]
+    force_evalsha_readonly: bool,
 }
 
 #[tokio::main]
@@ -76,6 +86,8 @@ async fn main() -> anyhow::Result<()> {
         proxy_auth,
         connect_timeout: Duration::from_millis(args.connect_timeout_ms),
         replica_timeout: Duration::from_millis(args.replica_timeout_ms),
+        force_eval_readonly: args.force_eval_readonly,
+        force_evalsha_readonly: args.force_evalsha_readonly,
     });
 
     let stats = Arc::new(Stats::new());
