@@ -7,7 +7,7 @@ use tokio::time::timeout;
 use crate::command::{HelloRequest, ParsedCommand, Request, parse_request};
 use crate::config::{Config, ProxyAuth, RedisEndpoint};
 use crate::resp::{Frame, RespStream, RespVersion, encode_command, encode_command_str};
-use crate::routing::{Route, is_always_master, is_dual_forward, is_replica_read_whitelisted};
+use crate::routing::{route_cmd, Route};
 use crate::stats::Stats;
 
 #[derive(Debug, Clone, Copy)]
@@ -178,19 +178,12 @@ fn decide_route(
     if state.in_multi || state.watch_active {
         return Route::Master;
     }
-    if is_always_master(&cmd.name_upper) {
-        return Route::Master;
-    }
 
-    if is_dual_forward(&cmd.name_upper, first_arg_upper) {
-        return Route::Both;
+    match route_cmd(&cmd.name_upper, first_arg_upper) {
+        Route::Both => Route::Both,
+        Route::Replica if replica_available => Route::Replica,
+        _ => Route::Master,
     }
-
-    if replica_available && is_replica_read_whitelisted(&cmd.name_upper) {
-        return Route::Replica;
-    }
-
-    Route::Master
 }
 
 fn update_state(state: &mut ConnState, cmd: &ParsedCommand) {

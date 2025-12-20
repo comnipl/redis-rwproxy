@@ -5,10 +5,21 @@ pub enum Route {
     Both,
 }
 
+pub fn route_cmd(cmd_upper: &str, first_arg_upper: Option<&str>) -> Route {
+    match (cmd_upper, first_arg_upper) {
+        ("HELLO", _) => Route::Both,
+        ("SELECT" | "READONLY" | "READWRITE", _) => Route::Both,
+        ("CLIENT", Some("SETNAME" | "SETINFO" | "TRACKING" | "CACHING" | "REPLY")) => Route::Both,
+        _ if is_always_master(cmd_upper) => Route::Master,
+        _ if is_replica_read(cmd_upper) => Route::Replica,
+        _ => Route::Master,
+    }
+}
+
 /// Extremely conservative whitelist of commands that are safe to route to a read replica.
 ///
 /// Policy: **default master, explicit allow-list only**.
-pub fn is_replica_read_whitelisted(cmd_upper: &str) -> bool {
+fn is_replica_read(cmd_upper: &str) -> bool {
     matches!(
         cmd_upper,
         // connection / healthcheck
@@ -29,23 +40,6 @@ pub fn is_replica_read_whitelisted(cmd_upper: &str) -> bool {
         // generic
         "EXISTS" | "TYPE" | "TTL" | "PTTL"
     )
-}
-
-/// Commands (or subcommands) that should always be forwarded to both master and replica.
-///
-/// *Response is always the master's response.*
-pub fn is_dual_forward(cmd_upper: &str, first_arg_upper: Option<&str>) -> bool {
-    match cmd_upper {
-        "SELECT" | "READONLY" | "READWRITE" => true,
-        "CLIENT" => matches!(
-            first_arg_upper.unwrap_or(""),
-            "SETNAME" | "SETINFO" | "TRACKING" | "CACHING" | "REPLY"
-        ),
-        // HELLO is treated specially (we don't forward client AUTH to backends), but protocol / setname state
-        // must be applied on both connections.
-        "HELLO" => true,
-        _ => false,
-    }
 }
 
 /// Commands that are always routed to the master regardless of whitelist.
