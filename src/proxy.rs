@@ -76,7 +76,17 @@ async fn handle_client_inner(
                 .await?;
                 continue;
             }
-            Request::Command(cmd) => {
+            Request::Command(mut cmd) => {
+                let mut raw = raw;
+
+                if cfg.force_eval_readonly && cmd.name_upper == "EVAL" {
+                    rewrite_command_name(&mut cmd, &mut raw, "EVAL_RO");
+                }
+
+                if cfg.force_evalsha_readonly && cmd.name_upper == "EVALSHA" {
+                    rewrite_command_name(&mut cmd, &mut raw, "EVALSHA_RO");
+                }
+
                 // Auth gate.
                 if !authenticated && !is_auth_exempt(&cmd) {
                     client
@@ -197,6 +207,17 @@ fn update_state(state: &mut ConnState, cmd: &ParsedCommand) {
         "UNWATCH" => state.watch_active = false,
         _ => {}
     }
+}
+
+fn rewrite_command_name(cmd: &mut ParsedCommand, raw: &mut Bytes, new_name: &str) {
+    cmd.name_upper = new_name.to_string();
+
+    let mut parts = Vec::with_capacity(cmd.args.len() + 1);
+    parts.push(Bytes::copy_from_slice(new_name.as_bytes()));
+    parts.extend(cmd.args.clone());
+
+    let encoded = encode_command(&parts);
+    *raw = encoded.freeze();
 }
 
 async fn handle_auth(
