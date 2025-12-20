@@ -14,9 +14,13 @@ pub fn route_cmd(cmd_upper: &str, first_arg_upper: Option<&str>) -> Route {
         _ if is_always_master(cmd_upper) => Route::Master,
         _ if is_replica_read(cmd_upper) => Route::Replica,
 
+        // scriptings
         ("SCRIPT", Some("DEBUG" | "FLUSH" | "KILL" | "LOAD")) => Route::Both,
         ("SCRIPT", None) | ("SCRIPT", Some("HELP")) => Route::Replica,
         ("SCRIPT", Some("EXISTS")) => Route::Master,
+
+        ("EVAL" | "EVALSHA", _) => Route::Master,
+        ("EVAL_RO" | "EVALSHA_RO", _) => Route::Replica,
 
         _ => Route::Master,
     }
@@ -59,9 +63,6 @@ pub fn is_always_master(cmd_upper: &str) -> bool {
             | "DISCARD"
             | "WATCH"
             | "UNWATCH"
-            | "EVAL"
-            | "EVALSHA"
-            | "EVAL_RO"
             | "FUNCTION"
             | "FCALL"
             | "FCALL_RO"
