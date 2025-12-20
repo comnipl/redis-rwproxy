@@ -7,7 +7,7 @@ use tokio::time::timeout;
 use crate::command::{HelloRequest, ParsedCommand, Request, parse_request};
 use crate::config::{Config, ProxyAuth, RedisEndpoint};
 use crate::resp::{Frame, RespStream, RespVersion, encode_command, encode_command_str};
-use crate::routing::{route_cmd, Route};
+use crate::routing::{Route, route_cmd};
 use crate::stats::Stats;
 
 #[derive(Debug, Clone, Copy)]
