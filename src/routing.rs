@@ -10,8 +10,14 @@ pub fn route_cmd(cmd_upper: &str, first_arg_upper: Option<&str>) -> Route {
         ("HELLO", _) => Route::Both,
         ("SELECT" | "READONLY" | "READWRITE", _) => Route::Both,
         ("CLIENT", Some("SETNAME" | "SETINFO" | "TRACKING" | "CACHING" | "REPLY")) => Route::Both,
+
         _ if is_always_master(cmd_upper) => Route::Master,
         _ if is_replica_read(cmd_upper) => Route::Replica,
+
+        ("SCRIPT", Some("DEBUG" | "FLUSH" | "KILL" | "LOAD")) => Route::Both,
+        ("SCRIPT", None) | ("SCRIPT", Some("HELP")) => Route::Replica,
+        ("SCRIPT", Some("EXISTS")) => Route::Master,
+
         _ => Route::Master,
     }
 }
@@ -56,7 +62,6 @@ pub fn is_always_master(cmd_upper: &str) -> bool {
             | "EVAL"
             | "EVALSHA"
             | "EVAL_RO"
-            | "SCRIPT"
             | "FUNCTION"
             | "FCALL"
             | "FCALL_RO"
