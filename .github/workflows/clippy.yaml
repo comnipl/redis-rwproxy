@@ -20,7 +20,7 @@ jobs:
         with:
           determinate: false
       - name: Setup Attic cache
-        uses: ryanccn/attic-action@7fbafba3978e86e585cb68a82c08b30f3672b62d # v0
+        uses: ryanccn/attic-action@3ea5d933b47d8f9a3f008af7724f4b8b4f97f3ad # v0
         with:
           endpoint: https://attic.comni.pl
           cache: redis-rwproxy
